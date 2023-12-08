@@ -156,24 +156,36 @@ export const Drawer: React.FC<Props> = ({
     }),
     []
   );
-  
-  const isBefore4PM = useCallback(
-    () => {
-      // Get the current date and time
-      const currentDate = new Date();
 
-      // Define the target time as 4:00 PM
-      const targetTimeHours = 16; // 4 PM
+  // checks if it's before 5 PM on Friday and Saturday, before 4 PM on other days between the 9th and 23rd of December 2023, and before 4 PM for any other day outside this period
+  const isBeforeSpecificTime = useCallback(() => {
+    const now = new Date();
+    const year = now.getFullYear(); // Get the current year
+    const month = now.getMonth(); // Get the month (0-11, 0 is January)
+    const day = now.getDate(); // Get the day of the month (1-31)
+    const dayOfWeek = now.getDay(); // Get the day of the week (0-6, 0 is Sunday)
+    const hour = now.getHours();
 
-      // Set the target time
-      const targetTime = new Date(currentDate);
-      targetTime.setHours(targetTimeHours, 0, 0, 0);
+    // Check if it's between 9th December (day 9) and 23rd December (day 23) of 2023
+    if (year === 2023 && month === 11 && day >= 9 && day <= 23) {
+      // Check if it's before 5 PM on Friday (day 5) or Saturday (day 6)
+      if ((dayOfWeek === 5 || dayOfWeek === 6) && hour < 17) {
+        return true;
+      }
 
-      // Compare the current time with the target time
-      return currentDate < targetTime;
-    },
-    []
-  );
+      // Check if it's before 4 PM on other days
+      if (hour < 16) {
+        return true;
+      }
+    } else {
+      // Outside the specified period or year, check if it's before 4 PM
+      if (hour < 16) {
+        return true;
+      }
+    }
+
+    return false;
+  }, []);
 
   const showUberButton = useCallback(
     () => {
@@ -183,7 +195,7 @@ export const Drawer: React.FC<Props> = ({
       // const stock = selectedStore?.stock;
 
       // let isStockEligibleForUber = true;
-      
+
       // if(!stock || Array.isArray(stock) === false || stock.length === 0 || findSKUStock(stock) < 2){
       //   isStockEligibleForUber = false;
       // }
@@ -191,9 +203,9 @@ export const Drawer: React.FC<Props> = ({
 
       // only show Uber button if:
       // 1. uberEnabled is true
-      // 2. current time is before 4pm
+      // 2. it's before 5 PM on Friday and Saturday, before 4 PM on other days between the 9th and 23rd of December 2023, and before 4 PM for any other day outside this period:
       // 3. product tags don't contain "sale" and "exclude-uber"
-      if(uberEnabled === true && isBefore4PM() && product && product.tags.indexOf("sale") === -1 && product.tags.indexOf("exclude-uber") === -1){
+      if(uberEnabled === true && isBeforeSpecificTime() && product && product.tags.indexOf("sale") === -1 && product.tags.indexOf("exclude-uber") === -1){
         return true;
       }
 
