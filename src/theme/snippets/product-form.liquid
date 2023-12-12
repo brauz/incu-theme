@@ -384,7 +384,13 @@
           style="display: none; width: 0"
         ></div>
         <div id="brauz-find-in-store-product-page"></div>
-        <script src="https://d3aq2u4yw77ivo.cloudfront.net/find-in-store/shopify/incu/find-in-store.shopify.incu.prod.js" async></script>
+
+        {% if shop.permanent_domain == "incu-2.myshopify.com" %}
+          <script src="https://d3aq2u4yw77ivo.cloudfront.net/find-in-store/shopify/incu/find-in-store.shopify.incu.prod.js" async></script>
+        {% else %}
+          <script src="https://d3aq2u4yw77ivo.cloudfront.net/find-in-store/shopify/incu/find-in-store.shopify.incu.dev.js" async></script>
+        {% endif %}
+        
       {%- endunless -%}
 
       {% render 'product-labels', placement: 'form' %}
