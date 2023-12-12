@@ -351,7 +351,7 @@
       {%- endform -%}
 
       {% unless is_gift_card or featured %}
-        <click-and-collect form-id="{{ product_form_id }}">
+        <!-- <click-and-collect form-id="{{ product_form_id }}">
           <script type="application/json" name="cart">{{ cart | json }}</script>
           <script type="application/json" name="locales">{{ 'cart.collection' | t | replace: '&quot;', '"' | replace: '=&gt;', ':' | replace: '&lt;', '<' | replace: '&amp;', '&' }}</script>
           <script type="application/json" name="product">{
@@ -374,7 +374,17 @@
           }</script>
           <script type="application/json" name="section">{{ section.settings | json }}</script>
           <script type="application/json" name="variant">{{ product.selected_or_first_available_variant | json }}</script>
-        </click-and-collect>
+        </click-and-collect> -->
+
+        <div
+          id="brauz-find-in-store-config-product-page"
+          data-sd="{{ shop.permanent_domain }}"
+          data-cvi="{{ product.first_available_variant.id }}"
+          data-hodv="{{ product.has_only_default_variant }}"
+          style="display: none; width: 0"
+        ></div>
+        <div id="brauz-find-in-store-product-page"></div>
+        <script src="https://d3aq2u4yw77ivo.cloudfront.net/find-in-store/shopify/incu/find-in-store.shopify.incu.prod.js" async></script>
       {%- endunless -%}
 
       {% render 'product-labels', placement: 'form' %}
