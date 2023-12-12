@@ -1,0 +1,534 @@
+{%- assign color_label_list = 'general.label.color' | t | replace: ', ', ',' | downcase | split: ',' -%}
+{%- assign color_white_label = 'general.label.white' | t | downcase -%}
+{%- assign size_label_list = 'general.label.size' | t | replace: ', ', ',' | downcase | split: ',' -%}
+{%- assign product_form_id = 'product-form-' | append: section.id | append: '-' | append: product.id -%}
+{%- assign size_chart_page = section.settings.size_chart_page -%}
+{%- assign found_size_option = false -%}
+{%- assign colour = blank -%}
+
+{%- for tag in product.tags -%}
+  {% assign tag_parts = tag | split: '-' %}
+  {%- if tag_parts[0] == 'colour' -%}
+    {%- assign colour = tag | remove: tag_parts[0] | replace: '-',' ' | strip -%}
+  {%- endif -%}
+{%- endfor -%}
+
+<div class="product-form{% if is_gift_card %} product-form--separated{% endif %}">
+  {%- unless product.has_only_default_variant -%}
+    <product-variants handle="{{ product.handle }}" form-id="{{ product_form_id }}" {% if update_url %}update-url{% endif %} class="product-form__variants">
+      {%- for option in product.options_with_values -%}
+        {%- assign option_downcase = option.name | downcase -%}
+        {%- capture option_id -%}option-{{ section.id }}-{{ template.suffix }}-{{ product.id }}-{{ forloop.index }}{%- endcapture -%}
+
+        {%- assign is_size = false -%}
+        {%- assign selector_type = 'block' -%}
+
+        {% if color_label_list contains option_downcase %}
+          {%- assign selector_type = 'color' -%}
+        {%- endif -%}
+
+        {% if is_gift_card %}
+          {%- assign selector_type = 'dropdown' -%}
+        {%- endif -%}
+
+        {% if size_label_list contains option_downcase %}
+          {%- assign found_size_option = true -%}
+          {%- assign is_size = true -%}
+        {%- endif -%}
+
+        <div class="product-form__option-selector" data-selector-type="{{ selector_type | replace: '_', '-' | escape }}" data-selector-name="{{ option.name | handleize }}">
+          {%- unless is_gift_card -%}
+            <div class="product-form__option-info-wrapper">
+              <div class="product-form__option-info">
+                {%- assign optionName = option.name | downcase -%}
+                <span class="product-form__option-name">{{ option.name }}:</span>
+                <span id="{{ option_id }}-value" data-selected-option-index="{{ forloop.index }}" data-value="{{ option.selected_value }}" class="product-form__option-value product-form__option-value-{{optionName}} ">
+                  {%- if selector_type == 'color' and colour != blank -%}
+                    {{ colour }}
+                  {%- else -%}
+                    {{ option.selected_value }}
+                  {%- endif -%}
+                </span>
+
+                {%- if is_size and product.available or product.selected_or_first_available_variant.incoming -%}
+                  <product-inventory form-id="{{ product_form_id }}" {% unless product.selected_or_first_available_variant.available or product.selected_or_first_available_variant.incoming %}hidden{% endunless %} class="product-form__inventory-wrapper">
+                    {%- if product.selected_or_first_available_variant.available -%}
+                      {%- if product.selected_or_first_available_variant.inventory_management and product.selected_or_first_available_variant.inventory_policy == 'deny' and product.selected_or_first_available_variant.inventory_quantity <= section.settings.low_inventory_threshold and section.settings.low_inventory_threshold > 0 -%}
+                        <span class="inventory inventory--low">{{ 'product.form.low_stock_with_quantity_count' | t: count: product.selected_or_first_available_variant.inventory_quantity }}</span>
+                      {%- else -%}
+                        {%- if product.selected_or_first_available_variant.inventory_policy == 'continue' and product.selected_or_first_available_variant.inventory_quantity <= 0 and product.selected_or_first_available_variant.requires_shipping -%}
+                          {%- if product.selected_or_first_available_variant.incoming and product.selected_or_first_available_variant.next_incoming_date -%}
+                            {%- capture next_incoming_date -%}{{ product.selected_or_first_available_variant.next_incoming_date | date: format: 'date' }}{%- endcapture -%}
+                            <span class="inventory inventory--low">{{ 'product.form.incoming_stock' | t: next_incoming_date: next_incoming_date }}</span>
+                          {%- else -%}
+                            <span class="inventory inventory--low">{{ 'product.form.oversell_stock' | t }}</span>
+                          {%- endif -%}
+                        {%- else -%}
+                          <span class="inventory inventory--high">{{ 'product.form.in_stock' | t }}</span>
+                        {%- endif -%}
+                      {%- endif -%}
+                    {%- elsif product.selected_or_first_available_variant.incoming -%}
+                      {%- if product.selected_or_first_available_variant.next_incoming_date -%}
+                        {%- capture next_incoming_date -%}{{ product.selected_or_first_available_variant.next_incoming_date | date: format: 'date' }}{%- endcapture -%}
+                        <span class="inventory inventory--low">{{ 'product.form.incoming_stock' | t: next_incoming_date: next_incoming_date }}</span>
+                      {%- else -%}
+                        <span class="inventory inventory--low">{{ 'product.form.oversell_stock' | t }}</span>
+                      {%- endif -%}
+                    {%- endif -%}
+
+                    <script type="application/json">
+                      {
+                        {%- for variant in product.variants -%}
+                          {%- capture inventory_message -%}
+                            {%- if variant.available -%}
+                              {%- if variant.inventory_management and variant.inventory_policy == 'deny' and variant.inventory_quantity <= section.settings.low_inventory_threshold and section.settings.low_inventory_threshold > 0 -%}
+                                <span class="inventory inventory--low">{{ 'product.form.low_stock_with_quantity_count' | t: count: variant.inventory_quantity }}</span>
+                              {%- else -%}
+                                {%- if variant.inventory_policy == 'continue' and variant.inventory_quantity <= 0 and variant.requires_shipping -%}
+                                  {%- if variant.incoming and variant.next_incoming_date -%}
+                                    {%- capture next_incoming_date -%}{{ variant.next_incoming_date | date: format: 'date' }}{%- endcapture -%}
+                                    <span class="inventory inventory--low">{{ 'product.form.incoming_stock' | t: next_incoming_date: next_incoming_date }}</span>
+                                  {%- else -%}
+                                    <span class="inventory inventory--low">{{ 'product.form.oversell_stock' | t }}</span>
+                                  {%- endif -%}
+                                {%- else -%}
+                                  <span class="inventory inventory--high">{{ 'product.form.in_stock' | t }}</span>
+                                {%- endif -%}
+                              {%- endif -%}
+                            {%- elsif variant.incoming -%}
+                              {%- if variant.next_incoming_date -%}
+                                {%- capture next_incoming_date -%}{{ variant.next_incoming_date | date: format: 'date' }}{%- endcapture -%}
+                                <span class="inventory inventory--low">{{ 'product.form.incoming_stock' | t: next_incoming_date: next_incoming_date }}</span>
+                              {%- else -%}
+                                <span class="inventory inventory--low">{{ 'product.form.oversell_stock' | t }}</span>
+                              {%- endif -%}
+                            {%- endif -%}
+                          {%- endcapture -%}
+
+                          "{{ variant.id }}": {{ inventory_message | json }}{% unless forloop.last %},{% endunless %}
+                        {%- endfor -%}
+                      }
+                    </script>
+                  </product-inventory>
+                {%- endif -%}
+              </div>
+
+              {% unless featured or is_size == false or is_footwear == false %}
+                <footwear-sizing form-id="{{ product_form_id }}">
+                  <script type="application/json" name="locales">{{ 'product.general' | t | replace: '&quot;', '"' | replace: '=&gt;', ':' | replace: '&lt;', '<' | replace: '&amp;', '&' }}</script>
+                  <script type="application/json" name="product">{
+                    "handle": {{ product.handle | json }},
+                    "options_with_values": [
+                      {% for option in product.options_with_values %}
+                        {
+                          "index": {{ forloop.index | json }},
+                          "name": {{ option.name | json }},
+                          "values": {{ option.values | json }}
+                        }{% unless forloop.last %},{% endunless %}
+                      {% endfor %}
+                    ],
+                    "tags": [
+                      {% for tag in product.tags %}
+                        {{ tag | json }}{% unless forloop.last %},{% endunless %}
+                      {% endfor %}
+                    ],
+                    "variants": [
+                      {% for variant in product.variants %}
+                        {{ variant | json }}{% unless forloop.last %},{% endunless %}
+                      {% endfor %}
+                    ]
+                  }</script>
+                </footwear-sizing>
+              {%- endunless -%}
+            </div>
+          {%- endunless -%}
+
+          <div class="product-form__option-selector__values{% unless option.values.size > 1 %} product-form__option-selector__values--hidden{% endunless %}">
+            {%- case selector_type -%}
+              {%- when 'color' -%}
+                <div class="color-swatch-list">
+                  {%- assign color_swatch_config = settings.color_swatch_config | newline_to_br | split: '<br />' -%}
+
+                  {%- for value in option.values -%}
+                    {%- assign color_value_downcase = value | downcase -%}
+
+                    <div class="color-swatch {% if color_white_label == color_value_downcase %}color-swatch--white{% endif %}">
+                      <input class="color-swatch__radio visually-hidden" type="radio" name="option{{ option.position }}" form="{{ product_form_id }}" id="{{ option_id }}-{{ forloop.index }}" value="{{ value | escape }}" {% if value == option.selected_value %}checked="checked"{% endif %} data-bind-value="{{ option_id }}-value">
+                      <label class="color-swatch__item" for="{{ option_id }}-{{ forloop.index }}" style="{% render 'color-swatch-style', color_swatch_config: color_swatch_config, value: value %}">
+                        <span class="visually-hidden">{{ value }}</span>
+                      </label>
+                    </div>
+                  {%- endfor -%}
+                </div>
+
+              {%- when 'block' -%}
+                <div class="block-swatch-list">
+                  {%- for value in option.values -%}
+                    <div class="block-swatch">
+                      <input class="block-swatch__radio visually-hidden" type="radio" name="option{{ option.position }}" form="{{ product_form_id }}" id="{{ option_id }}-{{ forloop.index }}" value="{{ value | escape }}" {% if value == option.selected_value %}checked="checked"{% endif %} data-bind-value="{{ option_id }}-value">
+                      <label class="block-swatch__item" data-selector-value="{{ value }}" for="{{ option_id }}-{{ forloop.index }}">{{ value }}</label>
+                    </div>
+                  {%- endfor -%}
+                </div>
+
+              {%- when 'dropdown' -%}
+                <div class="select-wrapper">
+                  <combo-box initial-focus-selector="[aria-selected='true']" id="{{ option_id }}-combo-box" class="combo-box">
+                    <span class="combo-box__overlay"></span>
+
+                    <header class="combo-box__header">
+                      <p class="combo-box__title heading h6">{{ option.name }}</p>
+
+                      <button type="button" class="combo-box__close-button tap-area" data-action="close" title="{{ 'general.accessibility.close' | t | escape }}">
+                        {%- render 'icon-close' -%}
+                      </button>
+                    </header>
+
+                    <div class="combo-box__option-list" role="listbox">
+                      {%- for value in option.values -%}
+                        <button type="button" role="option" class="combo-box__option-item" value="{{ value | escape }}" aria-selected="{% if value == option.selected_value %}true{% else %}false{% endif %}">{{ value }}</button>
+                      {%- endfor -%}
+                    </div>
+
+                    <select class="visually-hidden" name="option{{ option.position }}" form="{{ product_form_id }}" data-bind-value="{{ option_id }}-value" aria-label="{{ option.name | escape }}">
+                      {%- for value in option.values -%}
+                        <option value="{{ value | escape }}" {% if value == option.selected_value %}selected{% endif %}>{{ value }}</option>
+                      {%- endfor -%}
+                    </select>
+                  </combo-box>
+
+                  <button type="button" is="toggle-button" class="select" aria-expanded="false" aria-haspopup="listbox" aria-controls="{{ option_id }}-combo-box">
+                    <span id="{{ option_id }}-value" class="select__selected-value">{{ option.selected_value }}</span>
+                    {%- render 'icon-chevron-down' -%}
+                  </button>
+                </div>
+            {%- endcase -%}
+          </div>
+        </div>
+      {%- endfor -%}
+
+      <noscript>
+        <label class="input__block-label" for="product-select-{{ section.id }}-{{ product.id }}">{{ 'product.form.variant' | t }}</label>
+
+        <div class="select-wrapper">
+          <select class="select" autocomplete="off" id="product-select-{{ section.id }}-{{ product.id }}" name="id" form="{{ product_form_id }}">
+            {%- for variant in product.variants -%}
+              <option {% if variant == product.selected_or_first_available_variant %}selected="selected"{% endif %} {% unless variant.available %}disabled="disabled"{% endunless %} value="{{ variant.id }}" data-sku="{{ variant.sku }}">{{ variant.title }} - {{ variant.price | money_without_trailing_zeros }}</option>
+            {%- endfor -%}
+          </select>
+
+          {%- render 'icon' with 'chevron' -%}
+        </div>
+      </noscript>
+    </product-variants>
+  {% else %}
+    {%- if product.template_suffix != 'pre-order' and product.available or product.selected_or_first_available_variant.incoming -%}
+      <product-inventory form-id="{{ product_form_id }}" {% unless product.selected_or_first_available_variant.available or product.selected_or_first_available_variant.incoming %}hidden{% endunless %} class="product-form__inventory-wrapper">
+        {%- if product.selected_or_first_available_variant.available -%}
+          {%- if product.selected_or_first_available_variant.inventory_management and product.selected_or_first_available_variant.inventory_policy == 'deny' and product.selected_or_first_available_variant.inventory_quantity <= section.settings.low_inventory_threshold and section.settings.low_inventory_threshold > 0 -%}
+            <span class="inventory inventory--low">{{ 'product.form.low_stock_with_quantity_count' | t: count: product.selected_or_first_available_variant.inventory_quantity }}</span>
+          {%- else -%}
+            {%- if product.selected_or_first_available_variant.inventory_policy == 'continue' and product.selected_or_first_available_variant.inventory_quantity <= 0 and product.selected_or_first_available_variant.requires_shipping -%}
+              {%- if product.selected_or_first_available_variant.incoming and product.selected_or_first_available_variant.next_incoming_date -%}
+                {%- capture next_incoming_date -%}{{ product.selected_or_first_available_variant.next_incoming_date | date: format: 'date' }}{%- endcapture -%}
+                <span class="inventory inventory--low">{{ 'product.form.incoming_stock' | t: next_incoming_date: next_incoming_date }}</span>
+              {%- else -%}
+                <span class="inventory inventory--low">{{ 'product.form.oversell_stock' | t }}</span>
+              {%- endif -%}
+            {%- else -%}
+              <span class="inventory inventory--high">{{ 'product.form.in_stock' | t }}</span>
+            {%- endif -%}
+          {%- endif -%}
+        {%- elsif product.selected_or_first_available_variant.incoming -%}
+          {%- if product.selected_or_first_available_variant.next_incoming_date -%}
+            {%- capture next_incoming_date -%}{{ product.selected_or_first_available_variant.next_incoming_date | date: format: 'date' }}{%- endcapture -%}
+            <span class="inventory inventory--low">{{ 'product.form.incoming_stock' | t: next_incoming_date: next_incoming_date }}</span>
+          {%- else -%}
+            <span class="inventory inventory--low">{{ 'product.form.oversell_stock' | t }}</span>
+          {%- endif -%}
+        {%- endif -%}
+
+        <script type="application/json">
+          {
+            {%- for variant in product.variants -%}
+              {%- capture inventory_message -%}
+                {%- if variant.available -%}
+                  {%- if variant.inventory_management and variant.inventory_policy == 'deny' and variant.inventory_quantity <= section.settings.low_inventory_threshold and section.settings.low_inventory_threshold > 0 -%}
+                    <span class="inventory inventory--low">{{ 'product.form.low_stock_with_quantity_count' | t: count: variant.inventory_quantity }}</span>
+                  {%- else -%}
+                    {%- if variant.inventory_policy == 'continue' and variant.inventory_quantity <= 0 and variant.requires_shipping -%}
+                      {%- if variant.incoming and variant.next_incoming_date -%}
+                        {%- capture next_incoming_date -%}{{ variant.next_incoming_date | date: format: 'date' }}{%- endcapture -%}
+                        <span class="inventory inventory--low">{{ 'product.form.incoming_stock' | t: next_incoming_date: next_incoming_date }}</span>
+                      {%- else -%}
+                        <span class="inventory inventory--low">{{ 'product.form.oversell_stock' | t }}</span>
+                      {%- endif -%}
+                    {%- else -%}
+                      <span class="inventory inventory--high">{{ 'product.form.in_stock' | t }}</span>
+                    {%- endif -%}
+                  {%- endif -%}
+                {%- elsif variant.incoming -%}
+                  {%- if variant.next_incoming_date -%}
+                    {%- capture next_incoming_date -%}{{ variant.next_incoming_date | date: format: 'date' }}{%- endcapture -%}
+                    <span class="inventory inventory--low">{{ 'product.form.incoming_stock' | t: next_incoming_date: next_incoming_date }}</span>
+                  {%- else -%}
+                    <span class="inventory inventory--low">{{ 'product.form.oversell_stock' | t }}</span>
+                  {%- endif -%}
+                {%- endif -%}
+              {%- endcapture -%}
+
+              "{{ variant.id }}": {{ inventory_message | json }}{% unless forloop.last %},{% endunless %}
+            {%- endfor -%}
+          }
+        </script>
+      </product-inventory>
+    {%- endif -%}
+  {%- endunless -%}
+
+  {%- if found_size_option -%}
+    {%- if section.settings.show_easysize or size_chart_page != blank -%}
+      <div class="product-form__sizing{% if is_footwear and size_chart_page != blank %} product-form__sizing--extended{% endif %}">
+        {%- if section.settings.show_easysize -%}
+          <div id="easysize_anchor"></div>
+        {%- endif -%}
+
+        {%- if size_chart_page != blank -%}
+          <button type="button" is="toggle-button" class="product-form__option-link link link--subdued hidden-phone" aria-controls="product-{{ section.id }}-{{ product.id }}-size-chart-drawer" aria-expanded="false">{{ 'product.general.size_chart' | t }}</button>
+          <button type="button" is="toggle-button" class="product-form__option-link link link--subdued hidden-tablet-and-up" aria-controls="product-{{ section.id }}-{{ product.id }}-size-chart-popover" aria-expanded="false">{{ 'product.general.size_chart' | t }}</button>
+        {%- endif -%}
+      </div>
+    {%- endif -%}
+  {%- endif -%}
+
+  {%- if request.page_type != 'password' -%}
+    <div class="product-form__buy-buttons">
+      {%- form 'product', product, is: 'product-form', id: product_form_id -%}
+        <input type="hidden" disabled name="id" value="{{ product.selected_or_first_available_variant.id }}">
+
+        {%- if is_gift_card -%}
+          <div class="product-form__line-item-properties">
+            <div class="product-form__line-item-property product-form__line-item-property--half">
+              <p>{{ 'product.form.gift_card.from.title' | t }}</p>
+              {% assign field_label = 'product.form.gift_card.from.placeholder' | t %}
+              {% render 'form-input', id: 'line-item-{{ section.id }}-from', name: 'properties[From]', label: field_label, required: true %}
+            </div>
+            <div class="product-form__line-item-property product-form__line-item-property--half">
+              <p>{{ 'product.form.gift_card.to.title' | t }}</p>
+              {% assign field_label = 'product.form.gift_card.to.placeholder' | t %}
+              {% render 'form-input', id: 'line-item-{{ section.id }}-to', name: 'properties[To]', label: field_label, required: true %}
+            </div>
+            <div class="product-form__line-item-property">
+              <p>{{ 'product.form.gift_card.email.title' | t }}</p>
+              {% assign field_label = 'product.form.gift_card.email.placeholder' | t %}
+              {% render 'form-input', id: 'line-item-{{ section.id }}-email', name: 'properties[Email]', label: field_label, required: true, type: 'email' %}
+            </div>
+            <div class="product-form__line-item-property">
+              <p>{{ 'product.form.gift_card.subject.title' | t }}</p>
+              {% assign field_label = 'product.form.gift_card.subject.placeholder' | t %}
+              {% render 'form-input', id: 'line-item-{{ section.id }}-subject', name: 'properties[Subject]', label: field_label, required: true %}
+            </div>
+            <div class="product-form__line-item-property">
+              <p>{{ 'product.form.gift_card.message.title' | t }} <span>{{ 'product.form.gift_card.message.optional' | t }}</span></p>
+              {% assign field_label = 'product.form.gift_card.message.placeholder' | t %}
+              {% render 'form-textarea', id: 'line-item-{{ section.id }}-message', name: 'properties[Message]', label: field_label, maxlength: 150 %}
+            </div>
+          </div>
+        {%- endif -%}
+
+        <product-payment-container form-id="{{ product_form_id }}" {% if update_url %}id="MainPaymentContainer"{% endif %} class="product-form__payment-container">
+          <button id="AddToCart" type="submit" is="loader-button" data-product-add-to-cart-button data-button-content="{% if product.template_suffix == 'pre-order' %}{{ 'product.form.pre_order' | t | escape }}{% else %}{{ 'product.form.add_to_cart' | t | escape }}{% endif %}" class="product-form__add-button button {% unless product.selected_or_first_available_variant.available %}button--tertiary{% else %}{% endunless %} button--full" {% unless product.selected_or_first_available_variant.available %}disabled{% endunless %}>
+            {%- if product.selected_or_first_available_variant.available -%}
+              {%- if product.template_suffix == 'pre-order' -%}
+                {{- 'product.form.pre_order' | t -}}
+              {%- else -%}
+                {{- 'product.form.add_to_cart' | t -}}
+              {%- endif -%}
+            {%- else -%}
+              {{- 'product.form.sold_out' | t -}}
+            {%- endif -%}
+          </button>
+        </product-payment-container>
+      {%- endform -%}
+
+      {% unless is_gift_card or featured %}
+        <click-and-collect form-id="{{ product_form_id }}">
+          <script type="application/json" name="cart">{{ cart | json }}</script>
+          <script type="application/json" name="locales">{{ 'cart.collection' | t | replace: '&quot;', '"' | replace: '=&gt;', ':' | replace: '&lt;', '<' | replace: '&amp;', '&' }}</script>
+          <script type="application/json" name="product">{
+            "handle": {{ product.handle | json }},
+            "options_with_values": [
+              {% for option in product.options_with_values %}
+                {
+                  "index": {{ forloop.index | json }},
+                  "name": {{ option.name | json }},
+                  "values": {{ option.values | json }}
+                }{% unless forloop.last %},{% endunless %}
+              {% endfor %}
+            ],
+            "variants": [
+              {% for variant in product.variants %}
+                {{ variant | json }}{% unless forloop.last %},{% endunless %}
+              {% endfor %}
+            ],
+            "tags": {{ product.tags | json }}
+          }</script>
+          <script type="application/json" name="section">{{ section.settings | json }}</script>
+          <script type="application/json" name="variant">{{ product.selected_or_first_available_variant | json }}</script>
+        </click-and-collect>
+      {%- endunless -%}
+
+      {% render 'product-labels', placement: 'form' %}
+    </div>
+  {%- endif -%}
+
+  {% unless featured %}
+    {%- assign product_content = product.description | replace: '<p><span><strong>', '<p><strong>' | replace: '</span></p>', '</p>' | split: '<p><strong>' -%}
+    {%- capture description -%}{{ product_content[0] }}{%- endcapture -%}
+    {%- capture care -%}{{ product_content[1] | strip_html | remove: 'Materials:' | strip }}{% if product_content.size > 3 %}<br />{{ product_content[2] | strip_html | remove: 'Care:' | strip }}{% endif %}{%- endcapture -%}
+    {%- capture sizing -%}{% if product_content.size > 3 %}{{ product_content[3] | strip_html | remove: 'Sizing:' | strip }}{% else %}{{ product_content[2] | strip_html | remove: 'Sizing:' | strip }}{% endif %}{%- endcapture -%}
+
+    <div class="product-form__content">
+      {% unless is_gift_card %}
+        {% if sizing != blank %}
+          <div class="product-form__content-item">
+            <button is="toggle-button" class="collapsible-toggle text--strong" aria-controls="content-{{ section.id }}-sizing" aria-expanded="false">
+              <span class="icon-show">{{- 'product.general.size' | t -}}</span>
+              {% render 'icon-chevron-down' %}
+            </button>
+
+            <collapsible-content id="content-{{ section.id }}-sizing" class="collapsible anchor">
+              <div class="collapsible__content text-container">
+                {{- sizing | join: '<p><strong>' -}}
+              </div>
+            </collapsible-content>
+          </div>
+        {% endif %}
+
+        {% if care != blank %}
+          <div class="product-form__content-item">
+            <button is="toggle-button" class="collapsible-toggle text--strong" aria-controls="content-{{ section.id }}-care" aria-expanded="false">
+              <span class="icon-show">{{- 'product.general.care' | t -}}</span>
+              {% render 'icon-chevron-down' %}
+            </button>
+
+            <collapsible-content id="content-{{ section.id }}-care" class="collapsible anchor">
+              <div class="collapsible__content text-container">
+                {{- care | join: '<p><strong>' -}}
+              </div>
+            </collapsible-content>
+          </div>
+        {% endif %}
+
+        {%- assign shipping_page = section.settings.shipping_page -%}
+
+        {%- if shipping_page != blank -%}
+          <div class="product-form__content-item">
+            <button is="toggle-button" class="collapsible-toggle text--strong" aria-controls="content-{{ section.id }}-shipping" aria-expanded="false">
+              <span class="icon-show">{{- shipping_page.title -}}</span>
+              {% render 'icon-chevron-down' %}
+            </button>
+
+            <collapsible-content id="content-{{ section.id }}-shipping" class="collapsible anchor">
+              <div class="collapsible__content text-container">
+                {{- shipping_page.content -}}
+              </div>
+            </collapsible-content>
+          </div>
+        {%- endif -%}
+      {% endunless %}
+
+      {%- if description != blank -%}
+        <div class="product-form__content-item">
+          <button is="toggle-button" class="collapsible-toggle text--strong" aria-controls="content-{{ section.id }}-description" aria-expanded="true">
+            <span class="icon-show">{{- 'product.general.description' | t -}}</span>
+            {% render 'icon-chevron-down' %}
+          </button>
+
+          <collapsible-content id="content-{{ section.id }}-description" class="collapsible anchor" open>
+            {% if is_gift_card %}
+              <div class="collapsible__content text-container">
+                {{- description -}}
+              </div>
+            {% else %}
+              <overflow-content id="overflow-{{ section.id }}-description" class="overflow-content anchor">
+                <div class="overflow_content text-container">
+                  {{- description -}}
+                </div>
+              </overflow-content>
+              <button class="overflow-toggle" aria-toggles="overflow-{{ section.id }}-description" aria-expanded="false">
+                <span class="icon-show">{{- 'product.general.read_more' | t -}}</span>
+                {% render 'icon-chevron-down' %}
+              </button>
+            {% endif %}
+          </collapsible-content>
+        </div>
+      {%- endif -%}
+    </div>
+
+    <product-payments class="product-form__payments">
+      <p class="small">{{ 'product.general.payments' | t }}</p>
+      {% render 'app-afterpay', placement: 'badge' %}
+      {% render 'app-klarna', placement: 'badge' %}
+      <a href="//zip.co/au/how-zip-works" title="Zip Pay — How it works" target="_blank">{% render 'icon-payment-zip-badge' %}</a>
+    </product-payments>
+  {% endunless %}
+</div>
+
+{%- if template.suffix == 'quick-buy-drawer' -%}
+  <div class="product-form__view-details">
+    <a href="{{ product.url }}" class="link text--subdued">{{ 'product.general.view_details' | t }}</a>
+  </div>
+{%- endif -%}
+
+{%- comment -%}
+IMPLEMENTATION NOTE: if during the iteration of the options we have found an option matching a size chart, we add it here
+{%- endcomment -%}
+
+{%- if found_size_option and size_chart_page != blank -%}
+  {%- comment -%}Drawer is for tablet and desktop{%- endcomment -%}
+  <drawer-content id="product-{{ section.id }}-{{ product.id }}-size-chart-drawer" class="drawer drawer--large hidden-phone size-chart-drawer">
+    <span class="drawer__overlay"></span>
+
+    <header class="drawer__header">
+      <p class="drawer__title caps">{{ size_chart_page.title }}</p>
+
+      <button type="button" class="drawer__close-button tap-area" data-action="close" title="{{ 'general.accessibility.close' | t | escape }}">
+        {%- render 'icon-close' -%}
+      </button>
+    </header>
+
+    <div class="drawer__content drawer__content--padded-start">
+      <div class="rte">
+        {{- size_chart_page.content -}}
+      </div>
+    </div>
+  </drawer-content>
+
+  {%- comment -%}Popover is for mobile{%- endcomment -%}
+  <popover-content id="product-{{ section.id }}-{{ product.id }}-size-chart-popover" class="popover hidden-lap-and-up">
+    <span class="popover__overlay"></span>
+
+    <header class="popover__header">
+      <p class="popover__title heading h6">{{ size_chart_page.title }}</p>
+
+      <button type="button" class="popover__close-button tap-area tap-area--large" data-action="close" title="{{ 'general.accessibility.close' | t | escape }}">
+        {%- render 'icon-close' -%}
+      </button>
+    </header>
+
+    <div class="popover__content">
+      <div class="rte">
+        {{- size_chart_page.content -}}
+      </div>
+    </div>
+  </popover-content>
+{%- endif -%}
+
+{% unless featured %}
+  {% render 'app-afterpay', placement: 'script' %}
+  {% render 'app-klarna', placement: 'script' %}
+
+  {% if found_size_option and section.settings.show_easysize %}
+    {% render 'app-easysize', placement: 'script' %}
+  {% endif %}
+{% endunless %}
