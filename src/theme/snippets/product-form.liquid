@@ -351,7 +351,7 @@
       {%- endform -%}
 
       {% unless is_gift_card or featured %}
-        <click-and-collect form-id="{{ product_form_id }}">
+        <!-- <click-and-collect form-id="{{ product_form_id }}">
           <script type="application/json" name="cart">{{ cart | json }}</script>
           <script type="application/json" name="locales">{{ 'cart.collection' | t | replace: '&quot;', '"' | replace: '=&gt;', ':' | replace: '&lt;', '<' | replace: '&amp;', '&' }}</script>
           <script type="application/json" name="product">{
@@ -374,7 +374,7 @@
           }</script>
           <script type="application/json" name="section">{{ section.settings | json }}</script>
           <script type="application/json" name="variant">{{ product.selected_or_first_available_variant | json }}</script>
-        </click-and-collect>
+        </click-and-collect> -->
       {%- endunless -%}
 
       {% render 'product-labels', placement: 'form' %}
